@@ -1,0 +1,30 @@
+{
+  "skill_name": "resume-crafting",
+  "evals": [
+    {
+      "id": 1,
+      "name": "resume-review",
+      "prompt": "帮我改一下 inputs/resume_backend_zhangwei.docx 这份简历，我要投 Java 后端开发。投了半个月没什么回音，感觉写得太普通了，跟同学的一比都差不多。",
+      "expected_output": "诊断出简历的核心问题（全是'用了什么'没有'为什么'、罗列技术名词、缺量化结果），重写成能扛住面试追问的版本，输出改好的 docx 并说明改了什么",
+      "files": [
+        "inputs/resume_backend_zhangwei.docx"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "from-scratch",
+      "prompt": "我大三，想找数据分析的实习，但还没写过简历，完全不知道从哪下手。我做过的：课程项目做过一个电商用户行为分析，用 Python + pandas，数据是 Kaggle 上的巴西电商数据集，大概 10 万条订单；在一家小公司实习过两个月，主要做数据清洗和日报周报；数学建模竞赛拿过省二。能帮我从零做一份吗？",
+      "expected_output": "先追问细节（具体做了什么清洗、数据量、项目有什么结论）再动手，产出一份 1 页简历，内容具体可验证，不说套话",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "authenticity-audit",
+      "prompt": "inputs/resume_backend_zhangwei.docx 这份简历我准备改，但有个事拿不准：实习那两个月我写的东西，有些只是需求文档里规划的，不全是真做出来的。比如'使用RabbitMQ异步处理订单'，实际我只写了个 demo 跑通，没上过生产环境。这种该怎么写？会不会被面试官问穿？",
+      "expected_output": "识别出'方案设计'与'实际落地'的边界问题，给出降级后的安全表述，并说明面试时该怎么回答这类追问，而不是简单建议删掉或保留",
+      "files": [
+        "inputs/resume_backend_zhangwei.docx"
+      ]
+    }
+  ]
+}
