@@ -147,6 +147,82 @@ def check_style_links(path):
     return sorted(used - defined)
 
 
+def check_footer_direction(path):
+    """检查页眉/页脚里的方向标签是否和头部一致。
+
+    定向版简历的头部和页脚通常都印着目标方向（如「产品运营 / 数据分析」）。
+    改方向时只改头部、漏改页脚，就会得到一份自相矛盾的文件 ——
+    头部写产品运营、页脚写竞品研究，HR 扫一眼就看见了。
+
+    这个故障在正文里查不出来：页脚是独立的 XML 部件，正文文本提取
+    根本不会覆盖到它。而且两个方向标签都是「合理的」，不对比就发现不了。
+
+    返回:
+        None —— 没识别到页脚方向标签（跳过，不判定）
+        []   —— 识别到了，且与头部一致
+        [..] —— 与头部对不上的项
+    """
+    if not path.lower().endswith((".docx", ".doc")):
+        return None
+
+    import zipfile
+    from xml.etree import ElementTree as ET
+
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+
+            # 头部方向 = document.xml 里第一个有文字的段落
+            head = ""
+            root = ET.fromstring(z.read("word/document.xml"))
+            for p in root.iter(ns + "p"):
+                t = "".join(n.text or "" for n in p.iter(ns + "t")).strip()
+                if t:
+                    head = t
+                    break
+
+            feet = []
+            for part in names:
+                base = os.path.basename(part)
+                if not (base.startswith(("footer", "header")) and part.endswith(".xml")):
+                    continue
+                try:
+                    r = ET.fromstring(z.read(part))
+                except ET.ParseError:
+                    continue
+                t = "".join(n.text or "" for n in r.iter(ns + "t")).strip()
+                if t:
+                    feet.append((base, t))
+    except Exception:  # 读不出来不该阻断主流程
+        return None
+
+    if not head or not feet:
+        return None
+
+    head_flat = re.sub(r"\s+", "", head)
+    findings = []
+    checked = False
+
+    for base, text in feet:
+        # 没有分隔符就认不出哪一段是方向，跳过 —— 宁可漏检也不误报
+        if "|" not in text and "｜" not in text:
+            continue
+        for token in re.split(r"[|｜]", text):
+            token = re.sub(r"PAGE", "", token, flags=re.I).strip()
+            # 方向标签不含阿拉伯数字（「产品运营 / 数据分析」）。
+            # 页码、序号、日期都带数字，一并排除，避免误报。
+            if len(token) < 2 or re.search(r"\d", token):
+                continue
+            if not re.search(r"[一-鿿 A-Za-z]", token):
+                continue
+            checked = True
+            if re.sub(r"\s+", "", token) not in head_flat:
+                findings.append("%s 里的「%s」在头部找不到" % (base, token))
+
+    return findings if checked else None
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -194,6 +270,19 @@ def main():
         ok = False
     else:
         print("样式引用:    clean")
+
+    # 页脚方向：定向版改方向时的头号漏改点。
+    # 头部和页脚各印一份方向，只改一处就会自相矛盾。
+    foot = check_footer_direction(path)
+    if foot is None:
+        print("页脚方向:    跳过（未识别到带分隔符的方向标签）")
+    elif foot:
+        print("页脚方向与头部不一致（改方向时只改了头部）:")
+        for f in foot:
+            print("  不一致! ", f)
+        ok = False
+    else:
+        print("页脚方向:    clean")
 
     for kw in spec.get("must", []):
         hit = re.sub(r"\s+", "", kw) in flat
